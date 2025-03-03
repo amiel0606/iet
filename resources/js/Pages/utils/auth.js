@@ -1,9 +1,9 @@
 import axios from "axios";
+import { router } from "@inertiajs/vue3";
 
 export const registerUser = async (registerData, errors, showRegister) => {
     errors.value = {};
-
-    if (!registerData.value.name) {
+        if (!registerData.value.name) {
         errors.value.name = "Name is required.";
     }
     if (!registerData.value.email) {
@@ -17,39 +17,45 @@ export const registerUser = async (registerData, errors, showRegister) => {
         errors.value.password = "Password must be at least 6 characters.";
     }
 
-    if (Object.keys(errors.value).length > 0) {
-        return;
-    }
+    if (Object.keys(errors.value).length > 0) return; 
 
     try {
-        await axios.post("/register", registerData.value);
-        alert("Registration successful!");
-        showRegister.value = false;
+        await router.post("/register", registerData.value, {
+            onSuccess: () => {
+                alert("Registration successful!");
+                showRegister.value = false; 
+                router.visit("/"); 
+            },
+        });
     } catch (error) {
-        alert(error.response?.data?.message || "Error registering user");
+        errors.value.general = error.response?.data?.message || "Registration failed.";
     }
 };
 
-export const loginUser = async (
-    loginData,
-    user,
-    isLoggedIn,
-    loginError,
-    showLogin
-) => {
+export const loginUser = async (loginData, user, isLoggedIn, loginError, showLogin) => {
     loginError.value = "";
+
     try {
-        const response = await axios.post("/login", loginData.value);
-        user.value = response.data.user;
-        isLoggedIn.value = true;
-        showLogin.value = false;
+        await router.post("/login", loginData.value, {
+            onSuccess: () => {
+                isLoggedIn.value = true;
+                showLogin.value = false;
+                router.visit(route("dashboard")); 
+            },
+        });
     } catch (error) {
-        loginError.value =
-            error.response?.data?.message || "Invalid credentials";
+        loginError.value = error.response?.data?.message || "Invalid credentials.";
     }
 };
 
-export const logoutUser = (user, isLoggedIn) => {
-    user.value = null;
-    isLoggedIn.value = false;
+
+export const logoutUser = async (user, isLoggedIn) => {
+    try {
+        await axios.post("/logout");
+        user.value = null;
+        isLoggedIn.value = false;
+        router.visit("/"); 
+    } catch (error) {
+        console.error("Logout failed:", error);
+    }
 };

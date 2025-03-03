@@ -2,45 +2,48 @@
 
 namespace App\Http\Controllers;
 
-use App\Repositories\UserRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use App\Models\User;
+
 class UserController extends Controller
 {
-    protected $userRepo;
-
-    public function __construct(UserRepository $userRepo)
+    public function showRegister()
     {
-        $this->userRepo = $userRepo;
+        return Inertia::render('Auth/Register');
+    }
+
+    public function showLogin()
+    {
+        return Inertia::render('Auth/Login');
     }
 
     public function register(Request $request)
     {
-        $data = $request->validate([
-            'name' => 'required|string',
-            'email' => 'required|email|unique:tbl_users,email',
-            'password' => 'required|min:6',
-        ]);
+        $data = $request->only(['name', 'email', 'password']);
+        $data['password'] = Hash::make($data['password']);
 
-        $data['password'] = bcrypt($data['password']);
         User::create($data);
 
-        return response()->json(['message' => 'User registered successfully']);
+        return Inertia::location(route('dashboard'));
     }
 
     public function login(Request $request)
     {
-        $credentials = $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|min:6',
-        ]);
+        $credentials = $request->only(['email', 'password']);
 
         if (Auth::attempt($credentials)) {
-            return response()->json(['user' => Auth::user()]);
+            return Inertia::location(route('dashboard'));
         }
 
-        return response()->json(['message' => 'Invalid credentials'], 401);
+        return back()->withErrors(['email' => 'Invalid credentials']);
+    }
+
+    public function logout()
+    {
+        Auth::logout();
+        return Inertia::location(route('login'));
     }
 }
