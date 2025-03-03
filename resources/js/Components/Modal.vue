@@ -56,7 +56,6 @@ const closeOnEscape = (e) => {
 };
 
 onMounted(() => {
-    console.log("Dialog ref:", dialog.value);
     document.addEventListener("keydown", closeOnEscape);
 });
 

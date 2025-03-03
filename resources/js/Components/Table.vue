@@ -1,5 +1,8 @@
 <template>
-    <div :style="{ width: tableWidth, maxHeight: maxHeight }" class="overflow-auto border rounded-lg">
+    <div
+        :style="{ width: tableWidth, maxHeight: maxHeight }"
+        class="overflow-auto border rounded-lg"
+    >
         <table class="w-full border-collapse">
             <thead>
                 <tr>
@@ -22,13 +25,20 @@
                         :class="{ 'text-center w-20': key === 'Actions' }"
                     >
                         <template v-if="key === 'Actions'">
-                            <button @click="editRow(row)" class="text-blue-500 mx-1">
+                            <button
+                                @click.prevent="$emit('edit', row)"
+                                class="text-blue-500 mx-1"
+                            >
                                 <font-awesome-icon :icon="['fas', 'edit']" />
                             </button>
-                            <button @click="deleteRow(row)" class="text-red-500 mx-1">
+                            <button
+                                @click.prevent="$emit('delete', row.id)"
+                                class="text-red-500 mx-1"
+                            >
                                 <font-awesome-icon :icon="['fas', 'trash']" />
                             </button>
                         </template>
+
                         <template v-else>
                             {{ value }}
                         </template>
@@ -40,34 +50,38 @@
 </template>
 
 <script setup>
-defineProps({
+const props = defineProps({
     columns: Array,
     data: Array,
     tableWidth: {
         type: String,
-        default: "100%", // Customize table width
+        default: "100%",
     },
     maxHeight: {
         type: String,
-        default: "400px", // Customize max height
+        default: "400px",
     },
 });
+
 const emit = defineEmits(["edit", "delete"]);
 
 const editRow = (row) => emit("edit", row);
-const deleteRow = (row) => emit("delete", row);
+const deleteRow = (id) => emit("delete", id);
 </script>
 
 <style scoped>
-th, td {
-    white-space: nowrap; /* Prevent text wrapping */
+th,
+td {
+    white-space: nowrap;
 }
 
-th:not(:last-child), td:not(:last-child) {
-    width: 1%; /* Make columns uniform */
+th:not(:last-child),
+td:not(:last-child) {
+    width: 5%;
 }
 
-th:last-child, td:last-child {
-    width: 5rem; /* Actions column */
+th:last-child,
+td:last-child {
+    width: 1%;
 }
 </style>

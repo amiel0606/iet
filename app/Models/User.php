@@ -16,11 +16,11 @@ class User extends Authenticatable
 
     public function incomes(): HasMany
     {
-        return $this->hasMany(Income::class, 'userID');
+        return $this->hasMany(Income::class, 'user_id');
     }
 
     public function expenses(): HasMany
     {
-        return $this->hasMany(Expense::class, 'userID');
+        return $this->hasMany(Expense::class, 'user_id');
     }
 }

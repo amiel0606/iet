@@ -1,32 +1,14 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
-use Illuminate\Foundation\Application;
-use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\IncomeController;
 use App\Http\Controllers\ExpenseController;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 Route::get('/', function () {
     return Inertia::render('Home');
-});
-
-Route::middleware(['auth'])->group(function () {
-    Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard');
-    })->name('dashboard'); 
-    Route::get('/Tracker', [IncomeController::class, 'index'])->name('tracker');
-
-    Route::get('/incomes', [IncomeController::class, 'index'])->name('incomes.index');
-    Route::post('/incomes', [IncomeController::class, 'store'])->name('incomes.store');
-    Route::put('/incomes/{id}', [IncomeController::class, 'update'])->name('incomes.update');
-    Route::delete('/incomes/{id}', [IncomeController::class, 'destroy'])->name('incomes.destroy');
-});
-
-
-Route::get('/Tracker', function () {
-    return Inertia::render('Tracker');
 });
 
 Route::get('/register', [UserController::class, 'showRegister'])->name('register');
@@ -34,5 +16,26 @@ Route::post('/register', [UserController::class, 'register']);
 
 Route::get('/login', [UserController::class, 'showLogin'])->name('login');
 Route::post('/login', [UserController::class, 'login']);
-
 Route::post('/logout', [UserController::class, 'logout'])->name('logout');
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/dashboard', function () {
+        return Inertia::render('Dashboard');
+    })->name('dashboard'); 
+    
+    Route::get('/tracker', [IncomeController::class, 'index'])->name('tracker');
+
+    Route::prefix('incomes')->name('incomes.')->group(function () {
+        Route::get('/', [IncomeController::class, 'index'])->name('index');
+        Route::post('/create', [IncomeController::class, 'store'])->name('store');
+        Route::put('/{id}', [IncomeController::class, 'update'])->name('update');
+        Route::delete('/delete/{id}', [IncomeController::class, 'destroy'])->name('incomes.destroy');
+    });
+
+    Route::prefix('expenses')->name('expenses.')->group(function () {
+        Route::get('/', [ExpenseController::class, 'index'])->name('index');
+        Route::post('/create', [ExpenseController::class, 'store'])->name('store');
+        Route::put('/{id}', [ExpenseController::class, 'update'])->name('update');
+        Route::delete('/delete/{id}', [ExpenseController::class, 'destroy'])->name('destroy');
+    });
+});

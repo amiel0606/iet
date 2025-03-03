@@ -11,7 +11,7 @@ return new class extends Migration {
             $table->foreignId('user_id')->constrained('tbl_users')->onDelete('cascade');
             $table->date('date');
             $table->string('category');
-            $table->text('description')->nullable();
+            $table->text('description');
             $table->decimal('amount', 10, 2);
             $table->timestamps();
         });
@@ -21,7 +21,7 @@ return new class extends Migration {
             $table->foreignId('user_id')->constrained('tbl_users')->onDelete('cascade');
             $table->date('date');
             $table->string('category');
-            $table->text('description')->nullable();
+            $table->text('description');
             $table->decimal('amount', 10, 2);
             $table->timestamps();
         });
