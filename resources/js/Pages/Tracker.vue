@@ -1,10 +1,13 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { usePage } from "@inertiajs/vue3";
 import axios from "axios";
 import Table from "@/Components/Table.vue";
 import Modal from "@/Components/Modal.vue";
 import Notification from "@/Components/Notification.vue";
+import Search from "@/Components/Search.vue";
+import DatePicker from "@/Components/Datepicker.vue";
+import TagSelector from "@/Components/TagSelector.vue";
 
 const props = usePage().props;
 const notification = ref({
@@ -19,8 +22,43 @@ const showNotification = (message, type = "success") => {
         notification.value.show = false;
     }, 3000);
 };
+// Filters
+const searchQuery = ref("");
+const selectedDate = ref("");
+const selectedTags = ref([]);
 
-// Make incomes and expenses reactive
+watch([searchQuery, selectedDate, selectedTags], () => {
+    filterData();
+});
+
+const filterData = () => {
+    filteredIncomes.value = incomes.value.filter((income) => {
+        const matchesSearch = income.description
+            .toLowerCase()
+            .includes(searchQuery.value.toLowerCase());
+        const matchesDate = selectedDate.value
+            ? income.date === selectedDate.value
+            : true;
+        const matchesTags = selectedTags.value.length
+            ? selectedTags.value.includes(income.category)
+            : true;
+        return matchesSearch && matchesDate && matchesTags;
+    });
+
+    filteredExpenses.value = expenses.value.filter((expense) => {
+        const matchesSearch = expense.description
+            .toLowerCase()
+            .includes(searchQuery.value.toLowerCase());
+        const matchesDate = selectedDate.value
+            ? expense.date === selectedDate.value
+            : true;
+        const matchesTags = selectedTags.value.length
+            ? selectedTags.value.includes(expense.category)
+            : true;
+        return matchesSearch && matchesDate && matchesTags;
+    });
+};
+
 const incomes = ref(props.incomes || []);
 const expenses = ref(props.expenses || []);
 
@@ -67,25 +105,58 @@ const tableWidth = "100%";
 const maxHeight = "300px";
 const isModalOpen = ref(false);
 const modalTitle = ref("");
-const transactionType = ref(""); // Track if it's income or expense
-const newTransaction = ref({ amount: "", category: "", description: "" });
+const transactionType = ref("");
+const newTransaction = ref({
+    amount: "",
+    category: "",
+    description: "",
+    id: null,
+});
 
-const openModal = (type) => {
-    modalTitle.value = `Add ${type.charAt(0).toUpperCase() + type.slice(1)}`;
-    transactionType.value = type;
+const openModal = (type, transaction = null) => {
+    if (type === "editIncome" || type === "editExpense") {
+        modalTitle.value = `Edit ${
+            type.charAt(4).toUpperCase() + type.slice(5)
+        }`;
+        transactionType.value = type;
+        if (transaction) {
+            newTransaction.value = { ...transaction };
+        }
+    } else {
+        modalTitle.value = `Add ${
+            type.charAt(0).toUpperCase() + type.slice(1)
+        }`;
+        transactionType.value = type;
+        newTransaction.value = {
+            amount: "",
+            category: "",
+            description: "",
+            id: null,
+        };
+    }
     isModalOpen.value = true;
 };
 
 const closeModal = () => {
     isModalOpen.value = false;
-    newTransaction.value = { amount: "", category: "", description: "" };
+    newTransaction.value = {
+        amount: "",
+        category: "",
+        description: "",
+        id: null,
+    };
+    modalTitle.value = "";
 };
 
 const saveTransaction = async () => {
     try {
         const url =
-            transactionType.value === "income"
-                ? "/incomes/create"
+            transactionType.value === "editIncome"
+                ? newTransaction.value.id
+                    ? `/incomes/update/${newTransaction.value.id}`
+                    : "/incomes/create"
+                : newTransaction.value.id
+                ? `/expenses/update/${newTransaction.value.id}`
                 : "/expenses/create";
         const transactionData = {
             date: new Date().toISOString().split("T")[0],
@@ -93,26 +164,39 @@ const saveTransaction = async () => {
             category: newTransaction.value.category,
             description: newTransaction.value.description,
         };
-
         const response = await axios.post(url, transactionData);
-
         if (response.status === 200) {
             const newRecord = {
                 id: response.data.id,
-                date: transactionData.date, 
+                date: transactionData.date,
                 amount: transactionData.amount,
                 category: transactionData.category,
                 description: transactionData.description,
             };
 
-            if (transactionType.value === "income") {
-                incomes.value = [...incomes.value, newRecord]; 
+            if (transactionType.value === "editIncome") {
+                if (newTransaction.value.id) {
+                    incomes.value = incomes.value.map((income) =>
+                        income.id === newTransaction.value.id
+                            ? newRecord
+                            : income
+                    );
+                } else {
+                    incomes.value = [...incomes.value, newRecord];
+                }
             } else {
-                expenses.value = [...expenses.value, newRecord]; 
+                if (newTransaction.value.id) {
+                    expenses.value = expenses.value.map((expense) =>
+                        expense.id === newTransaction.value.id
+                            ? newRecord
+                            : expense
+                    );
+                } else {
+                    expenses.value = [...expenses.value, newRecord];
+                }
             }
-
             showNotification(
-                `${transactionType.value} added successfully!`,
+                `${transactionType.value} saved successfully!`,
                 "success"
             );
         }
@@ -134,8 +218,7 @@ const deleteTransaction = async (id, type) => {
             type === "income"
                 ? `/incomes/delete/${id}`
                 : `/expenses/delete/${id}`;
-        const response = await axios.delete(url);
-
+        const response = await axios.post(url, { _method: "DELETE" });
         if (response.status === 200) {
             if (type === "income") {
                 incomes.value = incomes.value.filter(
@@ -153,6 +236,28 @@ const deleteTransaction = async (id, type) => {
         showNotification(`Error deleting ${type}.`, "danger");
     }
 };
+
+const editTransaction = (id, type) => {
+    const url =
+        type === "editIncome" ? `/incomes/find/${id}` : `/expenses/find/${id}`;
+
+    axios
+        .get(url)
+        .then((response) => {
+            if (response.status === 200) {
+                const transaction = response.data;
+                openModal(type, {
+                    id: transaction.id,
+                    amount: transaction.amount,
+                    category: transaction.category,
+                    description: transaction.description,
+                });
+            }
+        })
+        .catch((error) => {
+            console.error("There was an error fetching the data:", error);
+        });
+};
 </script>
 
 <template>
@@ -163,11 +268,19 @@ const deleteTransaction = async (id, type) => {
     />
     <div class="flex flex-col items-center justify-center min-h-screen p-6">
         <h1 class="text-2xl font-bold mb-6">Transaction Tracker</h1>
+
+        <!-- Filter Section -->
+        <div class="w-full max-w-4xl mb-6 flex gap-4">
+            <Search v-model:search="searchQuery" />
+            <DatePicker v-model:date="selectedDate" />
+            <TagSelector v-model:tags="selectedTags" />
+        </div>
+
         <div class="w-full max-w-4xl">
             <!-- Income Section -->
             <div class="mb-6">
                 <div class="flex justify-between items-center mb-2">
-                    <h2 class="text-xl font-semibold">Income</h2>
+                    <h2 class="text-xl font-semibold">Incomes</h2>
                     <button
                         @click="openModal('income')"
                         class="px-4 py-2 bg-green-500 text-white rounded"
@@ -180,6 +293,7 @@ const deleteTransaction = async (id, type) => {
                     :data="formattedIncomeData"
                     :tableWidth="tableWidth"
                     :maxHeight="maxHeight"
+                    @edit="(id) => editTransaction(id, 'editIncome')"
                     @delete="(id) => deleteTransaction(id, 'income')"
                 />
             </div>
@@ -200,6 +314,7 @@ const deleteTransaction = async (id, type) => {
                     :data="formattedExpenseData"
                     :tableWidth="tableWidth"
                     :maxHeight="maxHeight"
+                    @edit="(id) => editTransaction(id, 'editExpense')"
                     @delete="(id) => deleteTransaction(id, 'expense')"
                 />
             </div>
@@ -210,7 +325,6 @@ const deleteTransaction = async (id, type) => {
             <template #header>
                 <h2 class="text-lg font-semibold">{{ modalTitle }}</h2>
             </template>
-
             <template #body>
                 <div class="p-4">
                     <label class="block mb-2">Amount:</label>
@@ -220,7 +334,6 @@ const deleteTransaction = async (id, type) => {
                         class="border p-2 w-full"
                         placeholder="Enter amount"
                     />
-
                     <label class="block mt-2 mb-2">Category:</label>
                     <input
                         v-model="newTransaction.category"
@@ -228,7 +341,6 @@ const deleteTransaction = async (id, type) => {
                         class="border p-2 w-full"
                         placeholder="Enter category"
                     />
-
                     <label class="block mt-2 mb-2">Description:</label>
                     <input
                         v-model="newTransaction.description"
@@ -236,7 +348,6 @@ const deleteTransaction = async (id, type) => {
                         class="border p-2 w-full"
                         placeholder="Enter description"
                     />
-
                     <button
                         @click="saveTransaction"
                         class="mt-4 px-4 py-2 bg-blue-500 text-white rounded"

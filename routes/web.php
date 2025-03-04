@@ -28,14 +28,16 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('incomes')->name('incomes.')->group(function () {
         Route::get('/', [IncomeController::class, 'index'])->name('index');
         Route::post('/create', [IncomeController::class, 'store'])->name('store');
-        Route::put('/{id}', [IncomeController::class, 'update'])->name('update');
+        Route::post('/update/{id}', [IncomeController::class, 'update'])->name('update');
         Route::delete('/delete/{id}', [IncomeController::class, 'destroy'])->name('incomes.destroy');
+        Route::get('/find/{id}', [IncomeController::class, 'find'])->name('find');
     });
 
     Route::prefix('expenses')->name('expenses.')->group(function () {
         Route::get('/', [ExpenseController::class, 'index'])->name('index');
         Route::post('/create', [ExpenseController::class, 'store'])->name('store');
-        Route::put('/{id}', [ExpenseController::class, 'update'])->name('update');
+        Route::post('/update/{id}', [ExpenseController::class, 'update'])->name('update');
         Route::delete('/delete/{id}', [ExpenseController::class, 'destroy'])->name('destroy');
+        Route::get('/find/{id}', [ExpenseController::class, 'find'])->name('find');
     });
 });

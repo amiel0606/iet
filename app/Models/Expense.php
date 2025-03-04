@@ -36,6 +36,13 @@ class Expense extends Model
         ]);
     }
 
+    public static function findExpense($expense_id)
+    {
+        return self::where('id', $expense_id)
+            ->where('user_id', Auth::id())
+            ->select('id','date', 'amount','category', 'description');
+    }
+
     public static function updateExpense($id, $data)
     {
         return self::where('id', $id)

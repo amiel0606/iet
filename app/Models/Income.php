@@ -46,6 +46,13 @@ class Income extends Model
                 'Amount' => $data['amount'],
             ]);
     }
+
+    public static function findIncome($id)
+    {
+        return self::where('id', $id)
+            ->where('user_id', Auth::id())
+            ->select('id','date', 'amount','category', 'description');
+    }
     public static function deleteIncome($id)
     {
         return self::where('id', $id)

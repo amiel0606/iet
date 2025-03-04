@@ -27,8 +27,14 @@ class IncomeController extends Controller
 
     public function update(Request $request, $id)
     {
-        Income::updateIncome($id, $request->all());
-        return back()->with('success', 'Income updated successfully');
+        $income = Income::updateIncome($id, $request->all());
+        return response()->json($income); 
+    }
+
+    public function find($id)
+    {
+        $income = Income::findIncome($id)->first();
+        return response()->json($income);
     }
 
     public function destroy($id)

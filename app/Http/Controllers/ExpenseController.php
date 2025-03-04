@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\Expense;
+use Illuminate\Support\Facades\Auth;
 
 class ExpenseController extends Controller
 {
     public function index()
     {
-        $expenses = Expense::getUserExpenses();
+        $user_id = Auth::id();
+        $expenses = Expense::getUserExpenses($user_id);
         return Inertia::render('Tracker', [
             'expenses' => $expenses,
         ]);
@@ -17,14 +19,20 @@ class ExpenseController extends Controller
 
     public function store(Request $request)
     {
-        Expense::createExpense($request->all());
-        return back()->with('success', 'Expense added successfully');
+        $expense = Expense::createExpense($request->all());
+        return response()->json($expense); 
     }
 
     public function update(Request $request, $id)
     {
-        Expense::updateExpense($id, $request->all());
-        return back()->with('success', 'Expense updated successfully');
+        $expense = Expense::updateExpense($id, $request->all());
+        return response()->json($expense); 
+    }
+
+    public function find($id)
+    {
+        $expense = Expense::findExpense($id)->first();
+        return response()->json($expense);
     }
 
     public function destroy($id)

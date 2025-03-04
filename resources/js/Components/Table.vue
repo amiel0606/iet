@@ -26,7 +26,7 @@
                     >
                         <template v-if="key === 'Actions'">
                             <button
-                                @click.prevent="$emit('edit', row)"
+                                @click.prevent="$emit('edit', row.id)"
                                 class="text-blue-500 mx-1"
                             >
                                 <font-awesome-icon :icon="['fas', 'edit']" />
@@ -65,8 +65,6 @@ const props = defineProps({
 
 const emit = defineEmits(["edit", "delete"]);
 
-const editRow = (row) => emit("edit", row);
-const deleteRow = (id) => emit("delete", id);
 </script>
 
 <style scoped>
