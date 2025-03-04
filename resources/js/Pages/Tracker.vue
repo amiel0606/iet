@@ -6,8 +6,9 @@ import Table from "@/Components/Table.vue";
 import Modal from "@/Components/Modal.vue";
 import Notification from "@/Components/Notification.vue";
 import Search from "@/Components/Search.vue";
-import DatePicker from "@/Components/Datepicker.vue";
+import DatePicker from "@/Components/DatePicker.vue";
 import TagSelector from "@/Components/TagSelector.vue";
+import * as XLSX from "xlsx";
 
 const props = usePage().props;
 const notification = ref({
@@ -22,42 +23,29 @@ const showNotification = (message, type = "success") => {
         notification.value.show = false;
     }, 3000);
 };
-// Filters
+
 const searchQuery = ref("");
 const selectedDate = ref("");
 const selectedTags = ref([]);
 
-watch([searchQuery, selectedDate, selectedTags], () => {
-    filterData();
-});
-
-const filterData = () => {
-    filteredIncomes.value = incomes.value.filter((income) => {
-        const matchesSearch = income.description
-            .toLowerCase()
-            .includes(searchQuery.value.toLowerCase());
-        const matchesDate = selectedDate.value
-            ? income.date === selectedDate.value
-            : true;
-        const matchesTags = selectedTags.value.length
-            ? selectedTags.value.includes(income.category)
-            : true;
-        return matchesSearch && matchesDate && matchesTags;
-    });
-
-    filteredExpenses.value = expenses.value.filter((expense) => {
-        const matchesSearch = expense.description
-            .toLowerCase()
-            .includes(searchQuery.value.toLowerCase());
-        const matchesDate = selectedDate.value
-            ? expense.date === selectedDate.value
-            : true;
-        const matchesTags = selectedTags.value.length
-            ? selectedTags.value.includes(expense.category)
-            : true;
-        return matchesSearch && matchesDate && matchesTags;
-    });
+// Function to fetch search results
+const fetchResults = async () => {
+    try {
+        const response = await axios.get("/incomes/search", {
+            params: {
+                search: searchQuery.value,
+                date: selectedDate.value,
+                tags: selectedTags.value.join(","), // Convert array to string
+            },
+        });
+        incomes.value = response.data;
+    } catch (error) {
+        console.error("Error fetching search results:", error);
+    }
 };
+
+// Watch for changes in search inputs
+watch([searchQuery, selectedDate, selectedTags], fetchResults);
 
 const incomes = ref(props.incomes || []);
 const expenses = ref(props.expenses || []);
@@ -151,20 +139,23 @@ const closeModal = () => {
 const saveTransaction = async () => {
     try {
         const url =
-            transactionType.value === "editIncome"
+            transactionType.value === "income" || transactionType.value === "editIncome"
                 ? newTransaction.value.id
                     ? `/incomes/update/${newTransaction.value.id}`
                     : "/incomes/create"
                 : newTransaction.value.id
-                ? `/expenses/update/${newTransaction.value.id}`
-                : "/expenses/create";
+                    ? `/expenses/update/${newTransaction.value.id}`
+                    : "/expenses/create";
+
         const transactionData = {
             date: new Date().toISOString().split("T")[0],
             amount: newTransaction.value.amount,
             category: newTransaction.value.category,
             description: newTransaction.value.description,
         };
+
         const response = await axios.post(url, transactionData);
+
         if (response.status === 200) {
             const newRecord = {
                 id: response.data.id,
@@ -174,12 +165,10 @@ const saveTransaction = async () => {
                 description: transactionData.description,
             };
 
-            if (transactionType.value === "editIncome") {
+            if (transactionType.value === "income" || transactionType.value === "editIncome") {
                 if (newTransaction.value.id) {
                     incomes.value = incomes.value.map((income) =>
-                        income.id === newTransaction.value.id
-                            ? newRecord
-                            : income
+                        income.id === newTransaction.value.id ? newRecord : income
                     );
                 } else {
                     incomes.value = [...incomes.value, newRecord];
@@ -187,25 +176,22 @@ const saveTransaction = async () => {
             } else {
                 if (newTransaction.value.id) {
                     expenses.value = expenses.value.map((expense) =>
-                        expense.id === newTransaction.value.id
-                            ? newRecord
-                            : expense
+                        expense.id === newTransaction.value.id ? newRecord : expense
                     );
                 } else {
                     expenses.value = [...expenses.value, newRecord];
                 }
             }
+
             showNotification(
                 `${transactionType.value} saved successfully!`,
                 "success"
             );
         }
+
         closeModal();
     } catch (error) {
-        console.error(
-            "Error saving transaction:",
-            error.response?.data || error
-        );
+        console.error("Error saving transaction:", error.response?.data || error);
         showNotification("Error saving transaction.", "danger");
     }
 };
@@ -258,6 +244,37 @@ const editTransaction = (id, type) => {
             console.error("There was an error fetching the data:", error);
         });
 };
+
+const isExportDropdownOpen = ref({
+    income: false,
+    expense: false,
+});
+
+const toggleExportDropdown = (type) => {
+    isExportDropdownOpen.value[type] = !isExportDropdownOpen.value[type];
+};
+
+const exportToExcel = async (type) => {
+    let dataToExport = [];
+    let filename = "transactions.xlsx";
+
+    if (type === "income") {
+        dataToExport = incomes.value;
+        filename = "income.xlsx";
+    } else if (type === "expense") {
+        dataToExport = expenses.value;
+        filename = "expenses.xlsx";
+    } else {
+        dataToExport = [...incomes.value, ...expenses.value];
+    }
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Transactions");
+    XLSX.writeFile(wb, filename);
+
+    isExportDropdownOpen.value[type] = false;
+};
 </script>
 
 <template>
@@ -270,23 +287,47 @@ const editTransaction = (id, type) => {
         <h1 class="text-2xl font-bold mb-6">Transaction Tracker</h1>
 
         <!-- Filter Section -->
-        <div class="w-full max-w-4xl mb-6 flex gap-4">
+        <div class="w-full max-w-4xl mb-6 flex gap-4 items-center">
             <Search v-model:search="searchQuery" />
             <DatePicker v-model:date="selectedDate" />
-            <TagSelector v-model:tags="selectedTags" />
+            <TagSelector
+                v-model="selectedTags"
+                :options="['zxcqwwqq', 'weqz', 'qweqw', 'qwzx', 'asdaww']"
+            />
         </div>
 
         <div class="w-full max-w-4xl">
             <!-- Income Section -->
             <div class="mb-6">
-                <div class="flex justify-between items-center mb-2">
+                <div class="flex justify-between items-center mb-2 w-full">
                     <h2 class="text-xl font-semibold">Incomes</h2>
-                    <button
-                        @click="openModal('income')"
-                        class="px-4 py-2 bg-green-500 text-white rounded"
-                    >
-                        + Add Income
-                    </button>
+                    <div class="flex gap-4">
+                        <button
+                            @click="openModal('income')"
+                            class="px-4 py-2 bg-green-500 text-white rounded"
+                        >
+                            + Add Income
+                        </button>
+                        <div class="relative">
+                            <button
+                                @click="toggleExportDropdown('income')"
+                                class="px-4 py-2 bg-blue-500 text-white rounded"
+                            >
+                                Export ▼
+                            </button>
+                            <div
+                                v-if="isExportDropdownOpen.income"
+                                class="absolute right-0 bg-white border rounded shadow-md w-48 mt-1 z-10"
+                            >
+                                <button
+                                    @click="exportToExcel('income')"
+                                    class="w-full text-left px-4 py-2 hover:bg-gray-100"
+                                >
+                                    Export Income
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <Table
                     :columns="incomeColumns"
@@ -299,25 +340,44 @@ const editTransaction = (id, type) => {
             </div>
 
             <!-- Expenses Section -->
-            <div>
-                <div class="flex justify-between items-center mb-2">
-                    <h2 class="text-xl font-semibold">Expenses</h2>
+            <div class="flex justify-between items-center mb-2 w-full">
+                <h2 class="text-xl font-semibold">Expenses</h2>
+                <div class="flex gap-4">
                     <button
                         @click="openModal('expense')"
                         class="px-4 py-2 bg-red-500 text-white rounded"
                     >
                         + Add Expense
                     </button>
+                    <div class="relative">
+                        <button
+                            @click="toggleExportDropdown('expense')"
+                            class="px-4 py-2 bg-blue-500 text-white rounded"
+                        >
+                            Export ▼
+                        </button>
+                        <div
+                            v-if="isExportDropdownOpen.expense"
+                            class="absolute right-0 bg-white border rounded shadow-md w-48 mt-1 z-10"
+                        >
+                            <button
+                                @click="exportToExcel('expense')"
+                                class="w-full text-left px-4 py-2 hover:bg-gray-100"
+                            >
+                                Export Expenses
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <Table
-                    :columns="expenseColumns"
-                    :data="formattedExpenseData"
-                    :tableWidth="tableWidth"
-                    :maxHeight="maxHeight"
-                    @edit="(id) => editTransaction(id, 'editExpense')"
-                    @delete="(id) => deleteTransaction(id, 'expense')"
-                />
             </div>
+            <Table
+                :columns="expenseColumns"
+                :data="formattedExpenseData"
+                :tableWidth="tableWidth"
+                :maxHeight="maxHeight"
+                @edit="(id) => editTransaction(id, 'editExpense')"
+                @delete="(id) => deleteTransaction(id, 'expense')"
+            />
         </div>
 
         <!-- Modal Component -->

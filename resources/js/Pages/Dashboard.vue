@@ -7,7 +7,7 @@
                 <Card color="#4CAF50" width="250" height="120">
                     <div>Total Income: {{ totalIncome }}</div>
                 </Card>
-                <a href="/incomes" class="text-blue-500 text-sm mt-2"
+                <a href="/tracker" class="text-blue-500 text-sm mt-2"
                     >View More</a
                 >
             </div>
@@ -15,7 +15,7 @@
                 <Card color="#F44336" width="250" height="120">
                     <div>Total Expenses: {{ totalExpenses }}</div>
                 </Card>
-                <a href="/incomes" class="text-blue-500 text-sm mt-2"
+                <a href="/tracker" class="text-blue-500 text-sm mt-2"
                     >View More</a
                 >
             </div>

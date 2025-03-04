@@ -22,19 +22,25 @@ class IncomeController extends Controller
     public function store(Request $request)
     {
         $income = Income::createIncome($request->all());
-        return response()->json($income); 
+        return response()->json($income);
     }
 
     public function update(Request $request, $id)
     {
         $income = Income::updateIncome($id, $request->all());
-        return response()->json($income); 
+        return response()->json($income);
     }
 
     public function find($id)
     {
         $income = Income::findIncome($id)->first();
         return response()->json($income);
+    }
+
+    public function search(Request $request)
+    {
+        $incomes = Income::searchIncome($request->all());
+        return response()->json($incomes);
     }
 
     public function destroy($id)

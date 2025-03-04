@@ -21,8 +21,8 @@ Route::post('/logout', [UserController::class, 'logout'])->name('logout');
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', function () {
         return Inertia::render('Dashboard');
-    })->name('dashboard'); 
-    
+    })->name('dashboard');
+
     Route::get('/tracker', [IncomeController::class, 'index'])->name('tracker');
 
     Route::prefix('incomes')->name('incomes.')->group(function () {
@@ -31,6 +31,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/update/{id}', [IncomeController::class, 'update'])->name('update');
         Route::delete('/delete/{id}', [IncomeController::class, 'destroy'])->name('incomes.destroy');
         Route::get('/find/{id}', [IncomeController::class, 'find'])->name('find');
+        Route::get('/search', [IncomeController::class, 'search'])->name('search');
     });
 
     Route::prefix('expenses')->name('expenses.')->group(function () {
