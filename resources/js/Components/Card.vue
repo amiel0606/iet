@@ -12,15 +12,18 @@
 </template>
 
 <script setup>
-import { defineProps } from "vue";
+import { computed } from 'vue';
 
-defineProps({
-    color: { type: String, default: "#f3f4f6" },
-    width: { type: Number, default: 200 },
-    height: { type: Number, default: 100 },
+const props = defineProps({
+    color: String,
+    width: [Number, String],  // Allow both Number and String
+    height: [Number, String]
 });
-</script>
 
+// Convert width and height to numbers (if necessary)
+const width = computed(() => Number(props.width));
+const height = computed(() => Number(props.height));
+</script>
 <style scoped>
 div {
     transition: all 0.3s ease;

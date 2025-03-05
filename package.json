@@ -27,6 +27,8 @@
         "@fortawesome/vue-fontawesome": "^3.0.8",
         "bootstrap": "^4.6.0",
         "chart.js": "^4.4.8",
+        "exceljs": "^4.4.0",
+        "file-saver": "^2.0.5",
         "jquery": "^3.7.1",
         "pinia": "^3.0.1",
         "xlsx": "^0.18.5"

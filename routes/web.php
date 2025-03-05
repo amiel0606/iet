@@ -40,5 +40,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/update/{id}', [ExpenseController::class, 'update'])->name('update');
         Route::delete('/delete/{id}', [ExpenseController::class, 'destroy'])->name('destroy');
         Route::get('/find/{id}', [ExpenseController::class, 'find'])->name('find');
+        Route::get('/search', [ExpenseController::class, 'search'])->name('search');
+
     });
+    Route::post('/expense/bulk-import', [ExpenseController::class, 'bulkImport']);
+    Route::post('/income/bulk-import', [IncomeController::class, 'bulkImport']);
+    Route::get('/all', [IncomeController::class, 'getAll'])->name('getAll');
 });

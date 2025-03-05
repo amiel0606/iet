@@ -19,6 +19,18 @@ class IncomeController extends Controller
         ]);
     }
 
+    public function getAll()
+    {
+        $user_id = Auth::id();
+        $incomes = Income::getUserIncomes($user_id);
+        $expenses = Expense::getUserExpenses($user_id);
+
+        return response()->json([
+            'incomes' => $incomes,
+            'expenses' => $expenses
+        ]);
+    }
+
     public function store(Request $request)
     {
         $income = Income::createIncome($request->all());
@@ -27,7 +39,8 @@ class IncomeController extends Controller
 
     public function update(Request $request, $id)
     {
-        $income = Income::updateIncome($id, $request->all());
+        $income = Income::findIncome($id)->first();
+        Income::updateIncome($id, $request->all());
         return response()->json($income);
     }
 
@@ -48,4 +61,19 @@ class IncomeController extends Controller
         Income::deleteIncome($id);
         return back()->with('success', 'Income deleted successfully');
     }
+
+    public function bulkImport(Request $request)
+    {
+        try {
+            foreach ($request->data as $item) {
+                $item['date'] = \Carbon\Carbon::parse($item['date'])->format('Y-m-d'); // ✅ Format date correctly
+                Income::createIncome($item);
+            }
+            return response()->json(['message' => 'Bulk import successful!'], 200);
+        } catch (\Exception $e) {
+            \Log::error("Bulk Import Error: " . $e->getMessage());
+            return response()->json(['error' => 'Something went wrong!'], 500);
+        }
+    }
+    
 }

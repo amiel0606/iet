@@ -17,6 +17,14 @@
                 </tr>
             </thead>
             <tbody>
+                <tr v-if="data.length === 0">
+                    <td
+                        :colspan="columns.length"
+                        class="p-4 text-center text-gray-500"
+                    >
+                        No records found.
+                    </td>
+                </tr>
                 <tr v-for="row in data" :key="row.id">
                     <td
                         v-for="(value, key) in row"
@@ -64,7 +72,6 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["edit", "delete"]);
-
 </script>
 
 <style scoped>

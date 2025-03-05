@@ -44,6 +44,7 @@ class Income extends Model
                 'Category' => $data['category'],
                 'Description' => $data['description'],
                 'Amount' => $data['amount'],
+                'id' => $id,
             ]);
     }
 
@@ -57,11 +58,14 @@ class Income extends Model
     public static function searchIncome($data)
     {
         return self::where('user_id', Auth::id())
-            ->where(function ($query) use ($data) {
-                $query->where('category', 'like', "%{$data['search']}%")
-                    ->orWhere('description', 'like', "%{$data['search']}%")
-                    ->orWhere('amount', 'like', "%{$data['search']}%")
-                    ->orWhere('date', 'like', "%{$data['search']}%");
+            ->when(!empty($data['search']), function ($query) use ($data) {
+                $query->where(function ($q) use ($data) {
+                    $q->where('category', 'like', "%{$data['search']}%")
+                        ->orWhere('description', 'like', "%{$data['search']}%");
+                });
+            })
+            ->when(!empty($data['date']), function ($query) use ($data) {
+                $query->whereDate('date', $data['date']);
             })
             ->select('id', 'date', 'amount', 'category', 'description')
             ->get();

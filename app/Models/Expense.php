@@ -40,7 +40,23 @@ class Expense extends Model
     {
         return self::where('id', $expense_id)
             ->where('user_id', Auth::id())
-            ->select('id','date', 'amount','category', 'description');
+            ->select('id', 'date', 'amount', 'category', 'description');
+    }
+
+    public static function searchExpense($data)
+    {
+        return self::where('user_id', Auth::id())
+            ->when(!empty($data['search']), function ($query) use ($data) {
+                $query->where(function ($q) use ($data) {
+                    $q->where('category', 'like', "%{$data['search']}%")
+                        ->orWhere('description', 'like', "%{$data['search']}%");
+                });
+            })
+            ->when(!empty($data['date']), function ($query) use ($data) {
+                $query->whereDate('date', $data['date']);
+            })
+            ->select('id', 'date', 'amount', 'category', 'description')
+            ->get();
     }
 
     public static function updateExpense($id, $data)

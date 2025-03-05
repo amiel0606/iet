@@ -7,8 +7,23 @@ import Modal from "@/Components/Modal.vue";
 import Notification from "@/Components/Notification.vue";
 import Search from "@/Components/Search.vue";
 import DatePicker from "@/Components/DatePicker.vue";
-import TagSelector from "@/Components/TagSelector.vue";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
+import { bulkImport } from "@/Pages/utils/bulkImport.js"; 
+
+const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    bulkImport(file);
+};
+
+const downloadTemplate = () => {
+    const link = document.createElement("a");
+    link.href = "/excelTemplate.xlsx";
+    link.download = "excelTemplate.xlsx";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
 
 const props = usePage().props;
 const notification = ref({
@@ -26,16 +41,15 @@ const showNotification = (message, type = "success") => {
 
 const searchQuery = ref("");
 const selectedDate = ref("");
-const selectedTags = ref([]);
+const searchQueryExpense = ref("");
+const selectedDateExpense = ref("");
 
-// Function to fetch search results
 const fetchResults = async () => {
     try {
         const response = await axios.get("/incomes/search", {
             params: {
                 search: searchQuery.value,
                 date: selectedDate.value,
-                tags: selectedTags.value.join(","), // Convert array to string
             },
         });
         incomes.value = response.data;
@@ -44,8 +58,22 @@ const fetchResults = async () => {
     }
 };
 
-// Watch for changes in search inputs
-watch([searchQuery, selectedDate, selectedTags], fetchResults);
+const fetchResultsExpense = async () => {
+    try {
+        const response = await axios.get("/expenses/search", {
+            params: {
+                search: searchQueryExpense.value,
+                date: selectedDateExpense.value,
+            },
+        });
+        expenses.value = response.data;
+    } catch (error) {
+        console.error("Error fetching search results:", error);
+    }
+};
+
+watch([searchQuery, selectedDate], fetchResults);
+watch([searchQueryExpense, selectedDateExpense], fetchResultsExpense);
 
 const incomes = ref(props.incomes || []);
 const expenses = ref(props.expenses || []);
@@ -139,13 +167,14 @@ const closeModal = () => {
 const saveTransaction = async () => {
     try {
         const url =
-            transactionType.value === "income" || transactionType.value === "editIncome"
+            transactionType.value === "income" ||
+            transactionType.value === "editIncome"
                 ? newTransaction.value.id
                     ? `/incomes/update/${newTransaction.value.id}`
                     : "/incomes/create"
                 : newTransaction.value.id
-                    ? `/expenses/update/${newTransaction.value.id}`
-                    : "/expenses/create";
+                ? `/expenses/update/${newTransaction.value.id}`
+                : "/expenses/create";
 
         const transactionData = {
             date: new Date().toISOString().split("T")[0],
@@ -165,10 +194,15 @@ const saveTransaction = async () => {
                 description: transactionData.description,
             };
 
-            if (transactionType.value === "income" || transactionType.value === "editIncome") {
+            if (
+                transactionType.value === "income" ||
+                transactionType.value === "editIncome"
+            ) {
                 if (newTransaction.value.id) {
                     incomes.value = incomes.value.map((income) =>
-                        income.id === newTransaction.value.id ? newRecord : income
+                        income.id === newTransaction.value.id
+                            ? newRecord
+                            : income
                     );
                 } else {
                     incomes.value = [...incomes.value, newRecord];
@@ -176,7 +210,9 @@ const saveTransaction = async () => {
             } else {
                 if (newTransaction.value.id) {
                     expenses.value = expenses.value.map((expense) =>
-                        expense.id === newTransaction.value.id ? newRecord : expense
+                        expense.id === newTransaction.value.id
+                            ? newRecord
+                            : expense
                     );
                 } else {
                     expenses.value = [...expenses.value, newRecord];
@@ -191,7 +227,10 @@ const saveTransaction = async () => {
 
         closeModal();
     } catch (error) {
-        console.error("Error saving transaction:", error.response?.data || error);
+        console.error(
+            "Error saving transaction:",
+            error.response?.data || error
+        );
         showNotification("Error saving transaction.", "danger");
     }
 };
@@ -257,23 +296,75 @@ const toggleExportDropdown = (type) => {
 const exportToExcel = async (type) => {
     let dataToExport = [];
     let filename = "transactions.xlsx";
+    let title = "Transactions Tracker";
 
     if (type === "income") {
         dataToExport = incomes.value;
         filename = "income.xlsx";
+        title = "Income Tracker";
     } else if (type === "expense") {
         dataToExport = expenses.value;
         filename = "expenses.xlsx";
+        title = "Expense Tracker";
     } else {
         dataToExport = [...incomes.value, ...expenses.value];
     }
 
-    const ws = XLSX.utils.json_to_sheet(dataToExport);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Transactions");
-    XLSX.writeFile(wb, filename);
+    try {
+        const response = await fetch("/excelTemplate.xlsx");
+        const arrayBuffer = await response.arrayBuffer();
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(arrayBuffer);
 
-    isExportDropdownOpen.value[type] = false;
+        const worksheet = workbook.worksheets[0];
+
+        let titleCell = worksheet.getCell("A1");
+        titleCell.value = title;
+
+        titleCell.font = { bold: true, size: 14, color: { argb: "FF000000" } };
+        titleCell.alignment = { horizontal: "center", vertical: "middle" };
+
+        let startRow = 3;
+        dataToExport.forEach((rowData, rowIndex) => {
+            let row = worksheet.getRow(startRow + rowIndex);
+            Object.values(rowData).forEach((value, colIndex) => {
+                let cell = row.getCell(colIndex + 1);
+                cell.value = value;
+
+                if (!cell.style.fill) {
+                    cell.fill = {
+                        type: "pattern",
+                        pattern: "solid",
+                        fgColor: { argb: "FFFFFF00" },
+                    };
+                }
+                cell.alignment = { vertical: "middle", horizontal: "center" };
+            });
+            row.commit();
+        });
+
+        if (dataToExport.length > 35) {
+            let extraRow = worksheet.getRow(43);
+            let newRow = worksheet.insertRow(44, []);
+            for (let colIndex = 1; colIndex <= 5; colIndex++) {
+                let sourceCell = extraRow.getCell(colIndex);
+                let targetCell = newRow.getCell(colIndex);
+                targetCell.value = sourceCell.value;
+                targetCell.style = { ...sourceCell.style };
+            }
+            newRow.commit();
+        }
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+        saveAs(blob, filename);
+
+        isExportDropdownOpen.value[type] = false;
+    } catch (error) {
+        console.error("Error exporting Excel file:", error);
+    }
 };
 </script>
 
@@ -290,10 +381,25 @@ const exportToExcel = async (type) => {
         <div class="w-full max-w-4xl mb-6 flex gap-4 items-center">
             <Search v-model:search="searchQuery" />
             <DatePicker v-model:date="selectedDate" />
-            <TagSelector
-                v-model="selectedTags"
-                :options="['zxcqwwqq', 'weqz', 'qweqw', 'qwzx', 'asdaww']"
+            <button
+                @click="downloadTemplate"
+                class="bg-blue-500 text-white px-4 py-2 rounded"
+            >
+                Download Template
+            </button>
+
+            <input
+                type="file"
+                @change="handleFileUpload"
+                class="hidden"
+                ref="fileInput"
             />
+            <button
+                @click="$refs.fileInput.click()"
+                class="bg-green-500 text-white px-4 py-2 rounded"
+            >
+                Bulk Import
+            </button>
         </div>
 
         <div class="w-full max-w-4xl">
@@ -334,9 +440,15 @@ const exportToExcel = async (type) => {
                     :data="formattedIncomeData"
                     :tableWidth="tableWidth"
                     :maxHeight="maxHeight"
+                    noDataText="No income transactions available."
                     @edit="(id) => editTransaction(id, 'editIncome')"
                     @delete="(id) => deleteTransaction(id, 'income')"
                 />
+            </div>
+            <!-- Filter Section -->
+            <div class="w-full max-w-4xl mb-6 flex gap-4 items-center">
+                <Search v-model:search="searchQueryExpense" />
+                <DatePicker v-model:date="selectedDateExpense" />
             </div>
 
             <!-- Expenses Section -->
@@ -375,6 +487,7 @@ const exportToExcel = async (type) => {
                 :data="formattedExpenseData"
                 :tableWidth="tableWidth"
                 :maxHeight="maxHeight"
+                noDataText="No Expense transactions available."
                 @edit="(id) => editTransaction(id, 'editExpense')"
                 @delete="(id) => deleteTransaction(id, 'expense')"
             />
