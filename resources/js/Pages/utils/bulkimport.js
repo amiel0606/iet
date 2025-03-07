@@ -2,7 +2,7 @@ import ExcelJS from "exceljs";
 import axios from "axios";
 
 export const bulkImport = async (file) => {
-    if (!file) return;
+    if (!file) return alert("No file selected.");
 
     const reader = new FileReader();
     reader.readAsArrayBuffer(file);
@@ -18,7 +18,7 @@ export const bulkImport = async (file) => {
                 ? "income"
                 : title === "Expense Tracker"
                 ? "expense"
-                : null;
+                : "";
 
         if (!type) {
             alert(

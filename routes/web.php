@@ -47,3 +47,5 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/income/bulk-import', [IncomeController::class, 'bulkImport']);
     Route::get('/all', [IncomeController::class, 'getAll'])->name('getAll');
 });
+
+

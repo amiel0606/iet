@@ -1,3 +1,172 @@
+<template>
+    <Notification
+        v-if="notification.show"
+        :message="notification.message"
+        :type="notification.type"
+    />
+    <div class="flex flex-col items-center justify-center min-h-screen p-6">
+        <h1 class="text-2xl font-bold mb-6">Transaction Tracker</h1>
+
+        <!-- Filter Section -->
+        <div class="w-full max-w-4xl mb-6 flex gap-4 items-center">
+            <Search v-model:search="searchQuery" />
+            <DatePicker v-model:date="selectedDate" />
+            <button
+                @click="downloadTemplate"
+                class="bg-blue-500 text-white px-4 py-2 rounded"
+            >
+                Download Template
+            </button>
+
+            <input
+                type="file"
+                @change="handleFileUpload"
+                class="hidden"
+                ref="fileInput"
+            />
+            <button
+                @click="$refs.fileInput.click()"
+                class="bg-green-500 text-white px-4 py-2 rounded"
+            >
+                Bulk Import
+            </button>
+        </div>
+
+        <div class="w-full max-w-4xl">
+            <!-- Income Section -->
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-2 w-full">
+                    <h2 class="text-xl font-semibold">Incomes</h2>
+                    <div class="flex gap-4">
+                        <button
+                            @click="openModal('income')"
+                            class="px-4 py-2 bg-green-500 text-white rounded"
+                        >
+                            + Add Income
+                        </button>
+                        <div class="relative">
+                            <button
+                                @click="toggleExportDropdown('income')"
+                                class="px-4 py-2 bg-blue-500 text-white rounded"
+                            >
+                                Export ▼
+                            </button>
+                            <div
+                                v-if="isExportDropdownOpen.income"
+                                class="absolute right-0 bg-white border rounded shadow-md w-48 mt-1 z-10"
+                            >
+                                <button
+                                    @click="exportToExcel('income')"
+                                    class="w-full text-left px-4 py-2 hover:bg-gray-100"
+                                >
+                                    Export Income
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <Table
+                    :columns="incomeColumns"
+                    :data="formattedIncomeData"
+                    :tableWidth="tableWidth"
+                    :maxHeight="maxHeight"
+                    noDataText="No income transactions available."
+                    @edit="(id) => editTransaction(id, 'editIncome')"
+                    @delete="(id) => deleteTransaction(id, 'income')"
+                />
+            </div>
+            <!-- Filter Section -->
+            <div class="w-full max-w-4xl mb-6 flex gap-4 items-center">
+                <Search v-model:search="searchQueryExpense" />
+                <DatePicker v-model:date="selectedDateExpense" />
+            </div>
+
+            <!-- Expenses Section -->
+            <div class="flex justify-between items-center mb-2 w-full">
+                <h2 class="text-xl font-semibold">Expenses</h2>
+                <div class="flex gap-4">
+                    <button
+                        @click="openModal('expense')"
+                        class="px-4 py-2 bg-red-500 text-white rounded"
+                    >
+                        + Add Expense
+                    </button>
+                    <div class="relative">
+                        <button
+                            @click="toggleExportDropdown('expense')"
+                            class="px-4 py-2 bg-blue-500 text-white rounded"
+                        >
+                            Export ▼
+                        </button>
+                        <div
+                            v-if="isExportDropdownOpen.expense"
+                            class="absolute right-0 bg-white border rounded shadow-md w-48 mt-1 z-10"
+                        >
+                            <button
+                                @click="exportToExcel('expense')"
+                                class="w-full text-left px-4 py-2 hover:bg-gray-100"
+                            >
+                                Export Expenses
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <Table
+                :columns="expenseColumns"
+                :data="formattedExpenseData"
+                :tableWidth="tableWidth"
+                :maxHeight="maxHeight"
+                noDataText="No Expense transactions available."
+                @edit="(id) => editTransaction(id, 'editExpense')"
+                @delete="(id) => deleteTransaction(id, 'expense')"
+            />
+        </div>
+
+        <!-- Modal Component -->
+        <Modal :show="isModalOpen" @close="closeModal">
+            <template #header>
+                <h2 class="text-lg font-semibold">{{ modalTitle }}</h2>
+            </template>
+            <template #body>
+                <div class="p-4">
+                    <label class="block mb-2">Amount:</label>
+                    <input
+                        v-model="newTransaction.amount"
+                        type="number"
+                        class="border p-2 w-full"
+                        placeholder="Enter amount"
+                        min="0"
+                    />
+                    <label class="block mt-2 mb-2">Category:</label>
+                    <input
+                        v-model="newTransaction.category"
+                        type="text"
+                        class="border p-2 w-full"
+                        placeholder="Enter category"
+                        required = true
+
+                    />
+                    <label class="block mt-2 mb-2">Description:</label>
+                    <input
+                        v-model="newTransaction.description"
+                        type="text"
+                        class="border p-2 w-full"
+                        placeholder="Enter description"
+                        required = true
+
+                    />
+                    <button
+                        @click="saveTransaction"
+                        class="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
+                    >
+                        Save
+                    </button>
+                </div>
+            </template>
+        </Modal>
+    </div>
+</template>
 <script setup>
 import { ref, computed, watch } from "vue";
 import { usePage } from "@inertiajs/vue3";
@@ -9,7 +178,7 @@ import Search from "@/Components/Search.vue";
 import DatePicker from "@/Components/DatePicker.vue";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
-import { bulkImport } from "@/Pages/utils/bulkImport.js"; 
+import { bulkImport } from "@/Pages/utils/bulkimport.js"; 
 
 const handleFileUpload = (event) => {
     const file = event.target.files[0];
@@ -367,168 +536,3 @@ const exportToExcel = async (type) => {
     }
 };
 </script>
-
-<template>
-    <Notification
-        v-if="notification.show"
-        :message="notification.message"
-        :type="notification.type"
-    />
-    <div class="flex flex-col items-center justify-center min-h-screen p-6">
-        <h1 class="text-2xl font-bold mb-6">Transaction Tracker</h1>
-
-        <!-- Filter Section -->
-        <div class="w-full max-w-4xl mb-6 flex gap-4 items-center">
-            <Search v-model:search="searchQuery" />
-            <DatePicker v-model:date="selectedDate" />
-            <button
-                @click="downloadTemplate"
-                class="bg-blue-500 text-white px-4 py-2 rounded"
-            >
-                Download Template
-            </button>
-
-            <input
-                type="file"
-                @change="handleFileUpload"
-                class="hidden"
-                ref="fileInput"
-            />
-            <button
-                @click="$refs.fileInput.click()"
-                class="bg-green-500 text-white px-4 py-2 rounded"
-            >
-                Bulk Import
-            </button>
-        </div>
-
-        <div class="w-full max-w-4xl">
-            <!-- Income Section -->
-            <div class="mb-6">
-                <div class="flex justify-between items-center mb-2 w-full">
-                    <h2 class="text-xl font-semibold">Incomes</h2>
-                    <div class="flex gap-4">
-                        <button
-                            @click="openModal('income')"
-                            class="px-4 py-2 bg-green-500 text-white rounded"
-                        >
-                            + Add Income
-                        </button>
-                        <div class="relative">
-                            <button
-                                @click="toggleExportDropdown('income')"
-                                class="px-4 py-2 bg-blue-500 text-white rounded"
-                            >
-                                Export ▼
-                            </button>
-                            <div
-                                v-if="isExportDropdownOpen.income"
-                                class="absolute right-0 bg-white border rounded shadow-md w-48 mt-1 z-10"
-                            >
-                                <button
-                                    @click="exportToExcel('income')"
-                                    class="w-full text-left px-4 py-2 hover:bg-gray-100"
-                                >
-                                    Export Income
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <Table
-                    :columns="incomeColumns"
-                    :data="formattedIncomeData"
-                    :tableWidth="tableWidth"
-                    :maxHeight="maxHeight"
-                    noDataText="No income transactions available."
-                    @edit="(id) => editTransaction(id, 'editIncome')"
-                    @delete="(id) => deleteTransaction(id, 'income')"
-                />
-            </div>
-            <!-- Filter Section -->
-            <div class="w-full max-w-4xl mb-6 flex gap-4 items-center">
-                <Search v-model:search="searchQueryExpense" />
-                <DatePicker v-model:date="selectedDateExpense" />
-            </div>
-
-            <!-- Expenses Section -->
-            <div class="flex justify-between items-center mb-2 w-full">
-                <h2 class="text-xl font-semibold">Expenses</h2>
-                <div class="flex gap-4">
-                    <button
-                        @click="openModal('expense')"
-                        class="px-4 py-2 bg-red-500 text-white rounded"
-                    >
-                        + Add Expense
-                    </button>
-                    <div class="relative">
-                        <button
-                            @click="toggleExportDropdown('expense')"
-                            class="px-4 py-2 bg-blue-500 text-white rounded"
-                        >
-                            Export ▼
-                        </button>
-                        <div
-                            v-if="isExportDropdownOpen.expense"
-                            class="absolute right-0 bg-white border rounded shadow-md w-48 mt-1 z-10"
-                        >
-                            <button
-                                @click="exportToExcel('expense')"
-                                class="w-full text-left px-4 py-2 hover:bg-gray-100"
-                            >
-                                Export Expenses
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <Table
-                :columns="expenseColumns"
-                :data="formattedExpenseData"
-                :tableWidth="tableWidth"
-                :maxHeight="maxHeight"
-                noDataText="No Expense transactions available."
-                @edit="(id) => editTransaction(id, 'editExpense')"
-                @delete="(id) => deleteTransaction(id, 'expense')"
-            />
-        </div>
-
-        <!-- Modal Component -->
-        <Modal :show="isModalOpen" @close="closeModal">
-            <template #header>
-                <h2 class="text-lg font-semibold">{{ modalTitle }}</h2>
-            </template>
-            <template #body>
-                <div class="p-4">
-                    <label class="block mb-2">Amount:</label>
-                    <input
-                        v-model="newTransaction.amount"
-                        type="number"
-                        class="border p-2 w-full"
-                        placeholder="Enter amount"
-                    />
-                    <label class="block mt-2 mb-2">Category:</label>
-                    <input
-                        v-model="newTransaction.category"
-                        type="text"
-                        class="border p-2 w-full"
-                        placeholder="Enter category"
-                    />
-                    <label class="block mt-2 mb-2">Description:</label>
-                    <input
-                        v-model="newTransaction.description"
-                        type="text"
-                        class="border p-2 w-full"
-                        placeholder="Enter description"
-                    />
-                    <button
-                        @click="saveTransaction"
-                        class="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
-                    >
-                        Save
-                    </button>
-                </div>
-            </template>
-        </Modal>
-    </div>
-</template>

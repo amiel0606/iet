@@ -8,21 +8,15 @@
                 <Card color="#4CAF50" :width="250" :height="120">
                     <div>Total Income: {{ totalIncome }}</div>
                 </Card>
-                <a href="/tracker" class="text-blue-500 text-sm mt-2"
-                    >View More</a
-                >
+                <a href="/tracker" class="text-blue-500 text-sm mt-2">View More</a>
             </div>
             <div class="flex flex-col items-center">
                 <Card color="#F44336" width="250" height="120">
                     <div>Total Expenses: {{ totalExpenses }}</div>
                 </Card>
-                <a href="/tracker" class="text-blue-500 text-sm mt-2"
-                    >View More</a
-                >
+                <a href="/tracker" class="text-blue-500 text-sm mt-2">View More</a>
             </div>
-            <Card color="#2196F3" width="250" height="120"
-                >Total Revenue: {{ totalRevenue }}</Card
-            >
+            <Card color="#2196F3" width="250" height="120">Total Revenue: {{ totalRevenue }}</Card>
         </div>
 
         <!-- Date Filter -->
@@ -30,10 +24,7 @@
             <label class="block font-semibold">Filter by Date Range:</label>
             <input type="date" v-model="startDate" class="border p-2 mr-2" />
             <input type="date" v-model="endDate" class="border p-2" />
-            <button
-                @click="filterData"
-                class="ml-2 px-4 py-2 bg-blue-500 text-white"
-            >
+            <button @click="filterData" class="ml-2 px-4 py-2 bg-blue-500 text-white">
                 Apply
             </button>
         </div>
@@ -78,61 +69,68 @@ let barChartInstance = null;
 let incomePieChartInstance = null;
 let expensePieChartInstance = null;
 
-const incomeData = ref([]);
-const expenseData = ref([]);
+const rawIncomes = ref([]);
+const rawExpenses = ref([]);
 
 const fetchData = async () => {
     try {
         const response = await axios.get("/all");
-        const { incomes, expenses } = response.data;
+        rawIncomes.value = response.data.incomes;
+        rawExpenses.value = response.data.expenses;
 
-        totalIncome.value = incomes.reduce((sum, item) => sum + Number(item.amount), 0);
-        totalExpenses.value = expenses.reduce(
-            (sum, item) => sum + Number(item.amount),
-            0
-        );
-        totalRevenue.value = totalIncome.value - totalExpenses.value;
-
-        processChartData(incomes, expenses);
+        // Initially display all data
+        filterData();
     } catch (error) {
         console.error("Error fetching data:", error);
     }
 };
 
 const filterData = () => {
-    fetchData();
+    let filteredIncomes = rawIncomes.value;
+    let filteredExpenses = rawExpenses.value;
+
+    if (startDate.value && endDate.value) {
+        filteredIncomes = rawIncomes.value.filter(item => 
+            item.date >= startDate.value && item.date <= endDate.value
+        );
+
+        filteredExpenses = rawExpenses.value.filter(item => 
+            item.date >= startDate.value && item.date <= endDate.value
+        );
+    }
+
+    processChartData(filteredIncomes, filteredExpenses);
 };
 
 const processChartData = (incomes, expenses) => {
+    totalIncome.value = incomes.reduce((sum, item) => sum + Number(item.amount), 0);
+    totalExpenses.value = expenses.reduce((sum, item) => sum + Number(item.amount), 0);
+    totalRevenue.value = totalIncome.value - totalExpenses.value;
+
     const incomeCategories = {};
     incomes.forEach((item) => {
         if (!incomeCategories[item.category]) {
             incomeCategories[item.category] = 0;
         }
-        incomeCategories[item.category] += item.amount;
+        incomeCategories[item.category] += Number(item.amount);
     });
 
-    // Grouping expense data by category
     const expenseCategories = {};
     expenses.forEach((item) => {
         if (!expenseCategories[item.category]) {
             expenseCategories[item.category] = 0;
         }
-        expenseCategories[item.category] += item.amount;
+        expenseCategories[item.category] += Number(item.amount);
     });
 
-    incomeData.value = Object.entries(incomeCategories);
-    expenseData.value = Object.entries(expenseCategories);
-
-    updateCharts();
+    updateCharts(incomeCategories, expenseCategories);
 };
 
-const updateCharts = () => {
+const updateCharts = (incomeCategories, expenseCategories) => {
     if (barChartInstance) barChartInstance.destroy();
     if (incomePieChartInstance) incomePieChartInstance.destroy();
     if (expensePieChartInstance) expensePieChartInstance.destroy();
 
-    // Bar Chart: Total Income, Expenses, Revenue
     barChartInstance = new Chart(barChartCanvas.value, {
         type: "bar",
         data: {
@@ -151,15 +149,14 @@ const updateCharts = () => {
         },
     });
 
-    // Income Pie Chart: Categories
     incomePieChartInstance = new Chart(incomePieChartCanvas.value, {
         type: "pie",
         data: {
-            labels: incomeData.value.map(([category]) => category),
+            labels: Object.keys(incomeCategories),
             datasets: [
                 {
                     label: "Income Categories",
-                    data: incomeData.value.map(([, amount]) => amount),
+                    data: Object.values(incomeCategories),
                     backgroundColor: [
                         "#4CAF50", "#66BB6A", "#81C784", "#A5D6A7", "#C8E6C9",
                     ],
@@ -168,15 +165,14 @@ const updateCharts = () => {
         },
     });
 
-    // Expense Pie Chart: Categories
     expensePieChartInstance = new Chart(expensePieChartCanvas.value, {
         type: "pie",
         data: {
-            labels: expenseData.value.map(([category]) => category),
+            labels: Object.keys(expenseCategories),
             datasets: [
                 {
                     label: "Expense Categories",
-                    data: expenseData.value.map(([, amount]) => amount),
+                    data: Object.values(expenseCategories),
                     backgroundColor: [
                         "#F44336", "#E57373", "#EF9A9A", "#FFCDD2", "#FFEBEE",
                     ],
